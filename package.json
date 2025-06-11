@@ -16,5 +16,13 @@
   "bugs": {
     "url": "https://github.com/Shyena-Inc/Vulny/issues"
   },
-  "homepage": "https://github.com/Shyena-Inc/Vulny#readme"
+  "homepage": "https://github.com/Shyena-Inc/Vulny#readme",
+  "dependencies": {
+    "bullmq": "^5.53.2",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "mongoose": "^8.15.1",
+    "morgan": "^1.10.0"
+  }
 }
