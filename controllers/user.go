@@ -26,8 +26,12 @@ var (
 )
 
 func init() {
-	userCollection = services.MongoClient.Database("vulny").Collection("users")
 	jwtSecret = []byte(services.JWTSecret)
+}
+
+// SetUserCollection sets the user collection
+func SetUserCollection(db *mongo.Database) {
+	userCollection = db.Collection("users")
 }
 
 // RegisterUser handler for POST /api/users/register

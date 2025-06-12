@@ -26,6 +26,9 @@ func IsValidEmail(email string) bool {
     return re.MatchString(email)
 }
 
+
+
+
 func ScanWorkerProcess(delivery rmq.Delivery) {
 	scanIDStr := delivery.Payload()
 	log.Printf("Processing scan job id: %s", scanIDStr)

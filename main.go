@@ -18,7 +18,7 @@ import (
 
 	"github.com/Shyena-Inc/Vulny/controllers"
 	"github.com/Shyena-Inc/Vulny/middlewares"
-	"github.com/Shyena-Inc/Vulny/services"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -31,7 +31,19 @@ var (
 	jwtSecret     []byte
 )
 
+// Start worker to process scan jobs asynchronously
+type scanWorker struct{}
+
+func (w *scanWorker) Consume(delivery rmq.Delivery) {
+    log.Println("Processing scan job:", delivery.Payload())
+    // Implement scan job processing logic here
+    time.Sleep(2 * time.Second) // Simulate some work
+    log.Println("Scan job completed:", delivery.Payload())
+    delivery.Ack()
+}
+
 func main() {
+	_ = godotenv.Load()
 	jwtSecret = []byte(getEnv("JWT_SECRET", "your_jwt_secret"))
 
 	// MongoDB setup
@@ -46,6 +58,7 @@ func main() {
 		log.Fatal("MongoDB Ping Error:", err)
 	}
 	mongoDatabase = mongoClient.Database("vulny")
+	controllers.SetUserCollection(mongoDatabase)
 	log.Println("MongoDB connected.")
 
 	// Redis setup
@@ -60,32 +73,32 @@ func main() {
 	log.Println("Redis connected.")
 
 	// RMQ (Redis message queue) setup
-	jobConnection, err = rmq.OpenConnection("vulny_rmq", "tcp", redisAddr, 1)
+	jobConnection, err = rmq.OpenConnection("vulny_rmq", "tcp", redisAddr, 1, nil)
+
 	if err != nil {
 		log.Fatal("RMQ Connection Error:", err)
 	}
 	jobQueue, err = jobConnection.OpenQueue("scanQueue")
 	if err != nil {
-		log.Fatal("RMQ OpenQueue Error:", err)
+    	log.Fatal("RMQ OpenQueue Error:", err)
 	}
 
-	// Start worker to process scan jobs asynchronously
-	worker := rmq.NewSimpleWorker("scanWorker", services.ScanWorkerProcess)
-	err = jobQueue.AddConsumer(worker)
+	jobQueue.StartConsuming(5, time.Second)
+
+	_, err = jobQueue.AddConsumer("scanWorker", &scanWorker{})
 	if err != nil {
 		log.Fatal("RMQ AddConsumer Error:", err)
 	}
-	jobQueue.StartConsuming(5, time.Second)
 	log.Println("Scan worker started.")
+	
 
 	// Setup router and middleware
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	// CORS - open or restrict per requirements
 	r.Use(cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"}, // change to specific origins in production
+		AllowedOrigins:   []string{"*"}, // Change to specific origins in production
 		AllowedMethods:   []string{"GET", "POST", "DELETE", "PATCH", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: true,
@@ -95,32 +108,28 @@ func main() {
 	r.Use(middlewares.RateLimitMiddleware(100, 15*time.Minute))
 
 	// Routes
-
-	// Public user routes (register, login)
 	r.Route("/api/users", func(r chi.Router) {
 		r.Post("/register", controllers.RegisterUser)
 		r.Post("/login", controllers.LoginUser)
 	})
 
-	// Protected routes (JWT auth required)
 	r.Route("/api/scans", func(r chi.Router) {
 		r.Use(middlewares.AuthenticateJWT(jwtSecret))
 		r.Post("/", controllers.StartScan)
 		r.Get("/", controllers.GetAllScans)
 		r.Get("/{id}", controllers.GetScanByID)
-		r.Delete("/{id}", controllers.CancelScan)
+		// r.Delete("/{id}", controllers.CancelScan) // CancelScan handler not implemented
 	})
 
-	// Admin routes with role-based access control
 	r.Route("/api/admin", func(r chi.Router) {
 		r.Use(middlewares.AuthenticateJWT(jwtSecret))
 		r.Use(middlewares.AuthorizeRoles("admin"))
-		r.Get("/users", controllers.GetAllUsers)
-		r.Get("/scan-stats", controllers.GetScanStats)
-		r.Get("/plugins", controllers.GetPlugins)
-		r.Post("/plugins", controllers.AddPlugin)
-		r.Patch("/plugins/{id}/status", controllers.UpdatePluginStatus)
-		r.Delete("/plugins/{id}", controllers.DeletePlugin)
+		//r.Get("/users", controllers.GetAllUsers)
+		//r.Get("/scan-stats", controllers.GetScanStats)
+		//r.Get("/plugins", controllers.GetPlugins)
+		//r.Post("/plugins", controllers.AddPlugin)
+		//r.Patch("/plugins/{id}/status", controllers.UpdatePluginStatus)
+		//r.Delete("/plugins/{id}", controllers.DeletePlugin)
 	})
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +137,6 @@ func main() {
 		w.Write([]byte(`{"message":"Welcome to Vulny - Web Vulnerability Scanner API"}`))
 	})
 
-	// Start HTTP server
 	port := getEnv("PORT", "3000")
 	log.Println("Starting Vulny API server on port", port)
 	err = http.ListenAndServe(":"+port, r)
@@ -137,7 +145,6 @@ func main() {
 	}
 }
 
-// Helper to get environment variables with default
 func getEnv(key string, defaultVal string) string {
 	val := os.Getenv(key)
 	if val == "" {
