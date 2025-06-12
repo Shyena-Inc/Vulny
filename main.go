@@ -1,0 +1,147 @@
+// main.go
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/adjust/rmq/v4"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-redis/redis/v8"
+	"github.com/rs/cors"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"vulny/controllers"
+	"vulny/middlewares"
+	"vulny/services"
+)
+
+var (
+	mongoClient   *mongo.Client
+	mongoDatabase *mongo.Database
+	redisClient   *redis.Client
+	jobConnection rmq.Connection
+	jobQueue      rmq.Queue
+	ctx           = context.Background()
+	jwtSecret     []byte
+)
+
+func main() {
+	jwtSecret = []byte(getEnv("JWT_SECRET", "your_jwt_secret"))
+
+	// MongoDB setup
+	mongoURI := getEnv("MONGODB_URI", "mongodb://localhost:27017")
+	var err error
+	mongoClient, err = mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		log.Fatal("MongoDB Connection Error:", err)
+	}
+	err = mongoClient.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal("MongoDB Ping Error:", err)
+	}
+	mongoDatabase = mongoClient.Database("vulny")
+	log.Println("MongoDB connected.")
+
+	// Redis setup
+	redisAddr := getEnv("REDIS_ADDR", "127.0.0.1:6379")
+	redisClient = redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	_, err = redisClient.Ping(ctx).Result()
+	if err != nil {
+		log.Fatal("Redis Connection Error:", err)
+	}
+	log.Println("Redis connected.")
+
+	// RMQ (Redis message queue) setup
+	jobConnection, err = rmq.OpenConnection("vulny_rmq", "tcp", redisAddr, 1)
+	if err != nil {
+		log.Fatal("RMQ Connection Error:", err)
+	}
+	jobQueue, err = jobConnection.OpenQueue("scanQueue")
+	if err != nil {
+		log.Fatal("RMQ OpenQueue Error:", err)
+	}
+
+	// Start worker to process scan jobs asynchronously
+	worker := rmq.NewSimpleWorker("scanWorker", services.ScanWorkerProcess)
+	err = jobQueue.AddConsumer(worker)
+	if err != nil {
+		log.Fatal("RMQ AddConsumer Error:", err)
+	}
+	jobQueue.StartConsuming(5, time.Second)
+	log.Println("Scan worker started.")
+
+	// Setup router and middleware
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	// CORS - open or restrict per requirements
+	r.Use(cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"}, // change to specific origins in production
+		AllowedMethods:   []string{"GET", "POST", "DELETE", "PATCH", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowCredentials: true,
+	}).Handler)
+
+	// Rate Limiting middleware (simple IP-based)
+	r.Use(middlewares.RateLimitMiddleware(100, 15*time.Minute))
+
+	// Routes
+
+	// Public user routes (register, login)
+	r.Route("/api/users", func(r chi.Router) {
+		r.Post("/register", controllers.RegisterUser)
+		r.Post("/login", controllers.LoginUser)
+	})
+
+	// Protected routes (JWT auth required)
+	r.Route("/api/scans", func(r chi.Router) {
+		r.Use(middlewares.AuthenticateJWT(jwtSecret))
+		r.Post("/", controllers.StartScan)
+		r.Get("/", controllers.GetAllScans)
+		r.Get("/{id}", controllers.GetScanByID)
+		r.Delete("/{id}", controllers.CancelScan)
+	})
+
+	// Admin routes with role-based access control
+	r.Route("/api/admin", func(r chi.Router) {
+		r.Use(middlewares.AuthenticateJWT(jwtSecret))
+		r.Use(middlewares.AuthorizeRoles("admin"))
+		r.Get("/users", controllers.GetAllUsers)
+		r.Get("/scan-stats", controllers.GetScanStats)
+		r.Get("/plugins", controllers.GetPlugins)
+		r.Post("/plugins", controllers.AddPlugin)
+		r.Patch("/plugins/{id}/status", controllers.UpdatePluginStatus)
+		r.Delete("/plugins/{id}", controllers.DeletePlugin)
+	})
+
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message":"Welcome to Vulny - Web Vulnerability Scanner API"}`))
+	})
+
+	// Start HTTP server
+	port := getEnv("PORT", "3000")
+	log.Println("Starting Vulny API server on port", port)
+	err = http.ListenAndServe(":"+port, r)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// Helper to get environment variables with default
+func getEnv(key string, defaultVal string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	return val
+}
