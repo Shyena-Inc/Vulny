@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"vulny/models"
+	"github.com/Shyena-Inc/Vulny/models"
 )
 
 type contextKey string

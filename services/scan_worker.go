@@ -8,14 +8,23 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 
-	"vulny/models"
+	"regexp"
+
+	"github.com/Shyena-Inc/Vulny/models"
+	"github.com/adjust/rmq"
 )
 
 var (
 	MongoClient *mongo.Client
 	JWTSecret   string
 )
+
+func IsValidEmail(email string) bool {
+    re := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+    return re.MatchString(email)
+}
 
 func ScanWorkerProcess(delivery rmq.Delivery) {
 	scanIDStr := delivery.Payload()

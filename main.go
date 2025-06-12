@@ -16,9 +16,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"vulny/controllers"
-	"vulny/middlewares"
-	"vulny/services"
+	"github.com/Shyena-Inc/Vulny/controllers"
+	"github.com/Shyena-Inc/Vulny/middlewares"
+	"github.com/Shyena-Inc/Vulny/services"
 )
 
 var (

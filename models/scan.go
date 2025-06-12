@@ -1,4 +1,3 @@
-// models/scan.go
 package models
 
 import (

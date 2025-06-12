@@ -11,12 +11,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"vulny/models"
-	"vulny/services"
+	"github.com/Shyena-Inc/Vulny/models"
+	"github.com/Shyena-Inc/Vulny/services"
 )
 
 var (
@@ -105,7 +106,9 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		},
 		"token": token,
 	}
-	services.WriteJSON(w, http.StatusCreated, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // LoginUser handler for POST /api/users/login
@@ -161,7 +164,9 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		},
 		"token": token,
 	}
-	services.WriteJSON(w, http.StatusOK, resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // Internal token generation helper
