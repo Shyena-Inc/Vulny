@@ -1,3 +1,4 @@
+// File: controllers/scan.go
 package controllers
 
 import (
@@ -9,29 +10,35 @@ import (
 
 // GetAllScans handles GET /api/scans/ and returns all scans (dummy implementation)
 func GetAllScans(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
-    // TODO: Replace with actual scan fetching logic
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]interface{}{
-        "scans": []interface{}{},
-    })
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"scans": []interface{}{},
+	}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // GetScanByID handles GET /api/scans/{id}
 func GetScanByID(w http.ResponseWriter, r *http.Request) {
-    id := chi.URLParam(r, "id")
-    // TODO: Replace with actual scan lookup logic
-    result := map[string]interface{}{
-        "id":      id,
-        "status":  "pending",
-        "message": "Scan details would be fetched from the database here.",
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(result)
+	id := chi.URLParam(r, "id")
+
+	// Optionally validate id here (e.g., ObjectID format)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":      id,
+		"status":  "pending",
+		"message": "Scan details would be fetched from the database here.",
+	}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
-// StartScan handles the POST /api/scans endpoint.
 func StartScan(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{"message": "Scan started (stub handler)"})
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Scan started (stub handler)"}); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }

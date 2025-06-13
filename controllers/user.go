@@ -175,7 +175,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 // Internal token generation helper
 func generateJWT(userID, role string) (string, error) {
-	claims := models.JWTClaims{
+	claims := &models.JWTClaims{  // <- pointer here
 		ID:   userID,
 		Role: role,
 		RegisteredClaims: jwt.RegisteredClaims{

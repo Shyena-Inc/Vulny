@@ -1,8 +1,8 @@
-// middlewares/auth.go
 package middlewares
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -31,8 +31,19 @@ func AuthenticateJWT(secret []byte) func(http.Handler) http.Handler {
 			token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 				return secret, nil
 			})
-			if err != nil || !token.Valid {
-				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+
+			if err != nil {
+				// Check if error is due to expired token
+				if errors.Is(err, jwt.ErrTokenExpired) {
+					http.Error(w, "Token expired", http.StatusUnauthorized)
+					return
+				}
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			if !token.Valid {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
@@ -77,7 +88,7 @@ func AuthorizeRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 	}
 }
 
-// FromRequest returns user info extracted by authentication middleware from request context
+// UserFromRequest returns user info extracted by authentication middleware from request context
 func UserFromRequest(r *http.Request) *models.User {
 	userRaw := r.Context().Value(ContextUserKey)
 	if userRaw == nil {

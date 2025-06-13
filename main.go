@@ -18,6 +18,7 @@ import (
 
 	"github.com/Shyena-Inc/Vulny/controllers"
 	"github.com/Shyena-Inc/Vulny/middlewares"
+	"github.com/Shyena-Inc/Vulny/services"
 	"github.com/joho/godotenv"
 )
 
@@ -44,7 +45,8 @@ func (w *scanWorker) Consume(delivery rmq.Delivery) {
 
 func main() {
 	_ = godotenv.Load()
-	jwtSecret = []byte(getEnv("JWT_SECRET", "your_jwt_secret"))
+	jwtSecret = []byte(services.JWTSecret)
+
 
 	// MongoDB setup
 	mongoURI := getEnv("MONGODB_URI", "mongodb://localhost:27017")
