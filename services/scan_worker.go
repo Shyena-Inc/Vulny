@@ -61,7 +61,6 @@ func runScan(scanID primitive.ObjectID) error {
 		return errors.New("scan not found: " + err.Error())
 	}
 
-	// Update status to running
 	_, err = scanCollection.UpdateOne(ctx, primitive.M{"_id": scanID}, primitive.M{
 		"$set": primitive.M{
 			"status":      "running",
@@ -73,7 +72,28 @@ func runScan(scanID primitive.ObjectID) error {
 	}
 
 	// TODO: Implement actual scan logic calling plugins:
-	// port scanning, subdomain enumeration, dir brute forcing, vuln checks
+	// port scanning
+	portResults := ScanOpenPorts(scan.TargetURL)
+
+	for _, pr := range portResults {
+		if pr.Status == "open" {
+			log.Printf("[+] Open Port %d (%s)", pr.Port, pr.Service)
+		}
+	}
+	//subdomain enumeration
+	wordlistPath := "wordlist/subdomains.txt"
+    subdomains, err := EnumerateSubdomainsFromFileConcurrent(scan.TargetURL, wordlistPath)
+   	if err != nil {
+		log.Printf("Subdomain enumeration error: %v", err)
+	} else {
+		for _, sub := range subdomains {
+		log.Printf("[+] Found subdomain: %s (%v)", sub.Subdomain, sub.IPs)
+		}
+	}
+
+
+	// dir brute forcing
+	//vuln check
 
 	// Here - placeholder vulnerability result
 	vulnerabilities := []models.Vulnerability{

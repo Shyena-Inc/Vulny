@@ -14,6 +14,22 @@ type Vulnerability struct {
 	Remediation string `bson:"remediation" json:"remediation"`
 }
 
+type PortResult struct {
+	Port    int    `bson:"port" json:"port"`
+	Service string `bson:"service" json:"service"`
+	Status  string `bson:"status" json:"status"` // open or closed
+}
+
+type SubdomainResult struct {
+	Subdomain string   `bson:"subdomain" json:"subdomain"`
+	IPs       []string `bson:"ips" json:"ips"`
+}
+
+type ScanConfig struct {
+	Depth   int               `bson:"depth" json:"depth"`
+	Headers map[string]string `bson:"headers" json:"headers"`
+}
+
 type Scan struct {
 	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	User            primitive.ObjectID `bson:"user" json:"user"`
@@ -21,11 +37,8 @@ type Scan struct {
 	Config          ScanConfig         `bson:"config" json:"config"`
 	Status          string             `bson:"status" json:"status"` // pending, running, completed, cancelled, failed
 	Vulnerabilities []Vulnerability    `bson:"vulnerabilities" json:"vulnerabilities"`
+	Ports           []PortResult       `bson:"ports,omitempty" json:"ports,omitempty"`
+	Subdomains      []SubdomainResult  `bson:"subdomains,omitempty" json:"subdomains,omitempty"` // ← added this line
 	CreatedAt       time.Time          `bson:"createdAt" json:"createdAt"`
 	CompletedAt     *time.Time         `bson:"completedAt,omitempty" json:"completedAt,omitempty"`
-}
-
-type ScanConfig struct {
-	Depth   int               `bson:"depth" json:"depth"`
-	Headers map[string]string `bson:"headers" json:"headers"`
 }
