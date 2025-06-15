@@ -17,7 +17,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/Shyena-Inc/Vulny/models"
-	"github.com/Shyena-Inc/Vulny/services"
 )
 
 // Constants for input validation and JWT
@@ -199,10 +198,18 @@ func validateRegisterInput(body reqBody) error {
 	if len(body.Password) < minPasswordLength {
 		return fmt.Errorf("password must be at least %d characters", minPasswordLength)
 	}
-	if len(body.Email) > maxEmailLength || !services.IsValidEmail(body.Email) {
+	if len(body.Email) > maxEmailLength || !isValidEmail(body.Email) {
 		return fmt.Errorf("invalid email format")
 	}
 	return nil
+}
+
+// isValidEmail provides a simple email format validation
+func isValidEmail(email string) bool {
+	// Basic check for presence of "@" and "."
+	at := strings.Index(email, "@")
+	dot := strings.LastIndex(email, ".")
+	return at > 0 && dot > at+1 && dot < len(email)-1
 }
 
 // generateJWT creates a JWT token for a user
