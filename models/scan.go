@@ -38,7 +38,7 @@ type Scan struct {
 	Status          string             `bson:"status" json:"status"` // pending, running, completed, cancelled, failed
 	Vulnerabilities []Vulnerability    `bson:"vulnerabilities" json:"vulnerabilities"`
 	Ports           []PortResult       `bson:"ports,omitempty" json:"ports,omitempty"`
-	Subdomains      []SubdomainResult  `bson:"subdomains,omitempty" json:"subdomains,omitempty"` // ← added this line
+	Subdomains      []SubdomainResult  `bson:"subdomains,omitempty" json:"subdomains,omitempty"`
 	CreatedAt       time.Time          `bson:"createdAt" json:"createdAt"`
 	CompletedAt     *time.Time         `bson:"completedAt,omitempty" json:"completedAt,omitempty"`
 }

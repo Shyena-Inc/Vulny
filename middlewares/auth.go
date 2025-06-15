@@ -2,7 +2,10 @@ package middlewares
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -14,44 +17,60 @@ import (
 
 type contextKey string
 
-const ContextUserKey = contextKey("user")
+const (
+	ContextUserKey = contextKey("user")
+	tokenIssuer    = "vulny-api" // Must match controllers/user.go
+)
 
 // AuthenticateJWT validates JWT token and attaches user info to context
 func AuthenticateJWT(secret []byte) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
+			log.Printf("Auth Header: %s", authHeader)
 			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				sendError(w, "Authorization header required", http.StatusUnauthorized)
 				return
 			}
-			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
+			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 			claims := &models.JWTClaims{}
 			token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+				}
 				return secret, nil
 			})
 
 			if err != nil {
-				// Check if error is due to expired token
+				log.Printf("JWT Parse Error: %v", err)
 				if errors.Is(err, jwt.ErrTokenExpired) {
-					http.Error(w, "Token expired", http.StatusUnauthorized)
+					sendError(w, "Token expired", http.StatusUnauthorized)
 					return
 				}
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				sendError(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			if !token.Valid {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				log.Printf("Invalid token: token is not valid")
+				sendError(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			if claims.Issuer != tokenIssuer {
+				log.Printf("Invalid token: issuer mismatch, got %s, expected %s", claims.Issuer, tokenIssuer)
+				sendError(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			userID, err := primitive.ObjectIDFromHex(claims.ID)
 			if err != nil {
-				http.Error(w, "Invalid user ID in token", http.StatusUnauthorized)
+				log.Printf("Invalid user ID in token: %v", err)
+				sendError(w, "Invalid user ID in token", http.StatusUnauthorized)
 				return
 			}
+
 			user := &models.User{
 				ID:   userID,
 				Role: claims.Role,
@@ -59,8 +78,7 @@ func AuthenticateJWT(secret []byte) func(http.Handler) http.Handler {
 
 			ctx := context.WithValue(r.Context(), ContextUserKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))
-		}
-		return http.HandlerFunc(fn)
+		})
 	}
 }
 
@@ -71,20 +89,25 @@ func AuthorizeRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 		roleSet[r] = struct{}{}
 	}
 	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userRaw := r.Context().Value(ContextUserKey)
 			if userRaw == nil {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				sendError(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
-			user := userRaw.(*models.User)
+			user, ok := userRaw.(*models.User)
+			if !ok {
+				log.Printf("Invalid user data in context")
+				sendError(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
 			if _, ok := roleSet[user.Role]; !ok {
-				http.Error(w, "Forbidden: insufficient permissions", http.StatusForbidden)
+				log.Printf("Forbidden: user role %s not allowed", user.Role)
+				sendError(w, "Forbidden: insufficient permissions", http.StatusForbidden)
 				return
 			}
 			next.ServeHTTP(w, r)
-		}
-		return http.HandlerFunc(fn)
+		})
 	}
 }
 
@@ -99,4 +122,14 @@ func UserFromRequest(r *http.Request) *models.User {
 		return nil
 	}
 	return user
+}
+
+// sendError sends a standardized error response
+func sendError(w http.ResponseWriter, message string, status int) {
+	resp := map[string]string{"error": message}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Printf("Failed to encode error response: %v", err)
+	}
 }
