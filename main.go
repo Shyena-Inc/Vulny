@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Shyena-Inc/Vulny/cmd"
+	"github.com/Shyena-Inc/Vulny/models"
 	"github.com/Shyena-Inc/Vulny/report"
 	"github.com/Shyena-Inc/Vulny/scanner"
 	"github.com/Shyena-Inc/Vulny/utils"
@@ -14,16 +15,16 @@ func main() {
 	// Parse command-line arguments
 	args := cmd.ParseArgs()
 	if args.Help || (!args.Update && args.Target == "") {
-		fmt.Println("RapidScan - The Multi-Tool Web Vulnerability Scanner")
+		fmt.Println("Vulny - The Multi-Tool Web Vulnerability Scanner")
 		fmt.Println("Usage:")
-		fmt.Println("\trapidscan -target example.com")
-		fmt.Println("\trapidscan -target example.com -skip host,nmap")
-		fmt.Println("\trapidscan -update")
+		fmt.Println("\tvulny -target example.com")
+		fmt.Println("\tvulny -target example.com -skip host,nmap")
+		fmt.Println("\tvulny -update")
 		os.Exit(0)
 	}
 
 	if args.Update {
-		fmt.Println("RapidScan is updating... Please wait.")
+		fmt.Println("Vulny is updating... Please wait.")
 		// Placeholder for update logic
 		fmt.Println("Update functionality not implemented in this version.")
 		os.Exit(0)
@@ -36,5 +37,6 @@ func main() {
 	vulnerabilities, totalElapsed, skippedChecks := scanner.Scan(target, args.Skip, args.NoSpinner)
 
 	// Generate report
-	report.GenerateReport(target, vulnerabilities, len(scanner.Tools), skippedChecks, totalElapsed)
+	toolCount := len(models.Tools)
+	report.GenerateReport(target, vulnerabilities, toolCount, skippedChecks, totalElapsed)
 }

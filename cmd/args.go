@@ -17,7 +17,7 @@ type Args struct {
 // ParseArgs parses command-line arguments
 func ParseArgs() Args {
 	help := flag.Bool("help", false, "Show help message and exit")
-	update := flag.Bool("update", false, "Update RapidScan")
+	update := flag.Bool("update", false, "Update Vulny")
 	skip := flag.String("skip", "", "Comma-separated list of tools to skip")
 	nospinner := flag.Bool("nospinner", false, "Disable the idle loader/spinner")
 	target := flag.String("target", "", "URL to scan")
