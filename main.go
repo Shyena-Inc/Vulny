@@ -12,14 +12,11 @@ import (
 )
 
 func main() {
-	// Parse command-line arguments
+	utils.PrintBanner()
+	utils.PrintVersion()
+	utils.PrintHelp()
 	args := cmd.ParseArgs()
-	if args.Help || (!args.Update && args.Target == "") {
-		fmt.Println("Vulny - The Multi-Tool Web Vulnerability Scanner")
-		fmt.Println("Usage:")
-		fmt.Println("\tvulny -target example.com")
-		fmt.Println("\tvulny -target example.com -skip host,nmap")
-		fmt.Println("\tvulny -update")
+	if args.Help || (!args.Update && args.Target == "") { 
 		os.Exit(0)
 	}
 
