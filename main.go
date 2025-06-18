@@ -24,11 +24,16 @@ func main() {
 	}
 
 	if args.Update {
-		fmt.Println("Vulny is updating... Please wait.")
-		// Placeholder for update logic
-		fmt.Println("Update functionality not implemented in this version.")
+		fmt.Println("🔄 Checking for updates...")
+		err := utils.UpdateBinary()
+		if err != nil {
+			fmt.Printf("❌ Update failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("✅ Vulny updated successfully! Run the command again.")
 		os.Exit(0)
 	}
+
 
 	// Normalize target URL
 	target := utils.NormalizeURL(args.Target)

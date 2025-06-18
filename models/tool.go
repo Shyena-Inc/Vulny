@@ -61,23 +61,24 @@ var Tools = []Tool{
 	},
 	{
 		Name:        "nmap",
-		Description: "Nmap - Scan for commonly opened ports",
-		Command:     "nmap -F --open -Pn -p 21,22,23,25,80,443,3389 %s",
+		Description: "Nmap - Full TCP port scan with service and OS detection",
+		Command:     "nmap -p- -sS -sV -O -Pn %s",
 		Enabled:     true,
 		Resp: ToolResponse{
-			Message:    "Commonly opened ports detected. Perform a full scan manually.",
-			Severity:   "l",
-			RemedIndex: 2,
+			Message:    "Full port scan complete. Analyze detected services and possible misconfigurations.",
+			Severity:   "m",
+			RemedIndex: 4,
 		},
 		Status: ToolStatus{
-			CheckString:  "tcp open",
+			CheckString:  "open",
 			Inverted:     false,
 			ProcLevel:    Yellow("●"),
-			EstTime:      "< 2m",
-			ID:           "nmapopen",
-			BadResponses: []string{"Failed to resolve"},
+			EstTime:      "≈ 5-10m",
+			ID:           "nmapfull",
+			BadResponses: []string{"Failed to resolve", "Host seems down"},
 		},
 	},
+	
 	{
 		Name:        "wpscan",
 		Description: "WPScan - Checks for WordPress vulnerabilities",
@@ -232,6 +233,26 @@ var Tools = []Tool{
 			BadResponses: []string{"connection refused"},
 		},
 	},
+	{
+		Name:        "dalfox",
+		Description: "Dalfox - Fast and powerful XSS scanning tool",
+		Command:     "dalfox url %s --skip-bav --only-poc",
+		Enabled:     true,
+		Resp: ToolResponse{
+			Message:    "Dalfox detected potential reflected/stored XSS vulnerabilities. Manual verification recommended.",
+			Severity:   "h",
+			RemedIndex: 6,
+		},
+		Status: ToolStatus{
+			CheckString:  "[POC]",
+			Inverted:     false,
+			ProcLevel:    Red("●"),
+			EstTime:      "< 2m",
+			ID:           "dalfox-xss",
+			BadResponses: []string{"Error", "no target"},
+		},
+	},
+	
 	{
 		Name:        "wafw00f",
 		Description: "WAFW00F - Web Application Firewall detection",
