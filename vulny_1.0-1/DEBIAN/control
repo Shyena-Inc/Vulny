@@ -1,0 +1,8 @@
+Package: vulny
+Version: 1.0-1
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.7)
+Maintainer: Aryan Shrestha <aryanstha4859@gmail.com>
+Description: Vulny is a multi-tool web vulnerability scanner built in Go.
